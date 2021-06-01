@@ -1,0 +1,5 @@
+balena-sdk
+paho-mqtt
+python-dateutil
+twilio
+w1thermsensor
