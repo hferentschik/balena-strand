@@ -1,0 +1,21 @@
+name: "balena-pijuice-temp"
+description: >-
+  Balena project using a PiJuice and a DS18B20 1-wire temperature sensor to measure temperatures from a remote location.
+  Raspberry Pi wakes up in configurable intervals, takes a measurement, submits value to MQTT broker and shuts down.
+type: "sw.application"
+joinable: false
+assets:
+  repository:
+    type: blob.asset
+    data:
+      url: "https://github.com/hferentschik/balena-strand"
+  logo:
+    type: blob.asset
+    data:
+      url: "https://raw.githubusercontent.com/hferentschik/balena-strand/master/logo.png" 
+data:
+  applicationConfigVariables:
+    - BALENA_HOST_CONFIG_CONNECTIVITY_CHECK: true
+  defaultDeviceType: "raspberrypi3-64"
+  supportedDeviceTypes:
+    - "raspberrypi3-64"
