@@ -2,8 +2,17 @@ version: '2'
 services:
   pijuice:
     build: ./pijuice
+    restart: "unless-stopped"
     privileged: true
-    network_mode: host
-    labels: 
+    depends_on:
+     - lora
+    labels:
+      io.balena.features.supervisor-api: '1'
       io.balena.features.balena-api: '1'
       io.balena.features.kernel-modules: '1'
+  lora:
+    build: ./lora
+    restart: "unless-stopped"
+    privileged: true
+    ports:
+      - "8080"

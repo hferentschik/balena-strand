@@ -1,9 +1,9 @@
-FROM balenalib/raspberrypi3-64-python:3-buster
+FROM balenalib/raspberrypi3-64-python:latest
 
 RUN echo 'deb http://archive.raspberrypi.org/debian/ buster main' >> /etc/apt/sources.list
 RUN apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 82B129927FA3303E
 RUN apt-get update \
- && apt-get install -y curl jq pijuice-gui openssh-server tzdata \
+ && apt-get install -y curl jq pijuice-base build-essential openssh-server tzdata \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 

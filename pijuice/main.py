@@ -1,24 +1,18 @@
 import datetime
-import json
 import os
+import requests
 import time
 
-import paho.mqtt.client as mqtt
-
-from pijuice import PiJuice
 from balena import Balena
-
 from datetime import datetime, timedelta
 from dateutil.tz import tzutc
+from pijuice import PiJuice
 from time import sleep
 from w1thermsensor import W1ThermSensor
 
 WAKEALARM = '/sys/class/rtc/rtc0/wakealarm'
-BROKER_ADDRESS = os.environ.get('MQTT_BROKER') or "mqtt"
-BROKER_PORT = os.environ.get('MQTT_BROKER_PORT') or 80
+API_ENDPOINT = os.environ.get('API_ENDPOINT') or "http://lora:8080/api/v1/send"
 SLEEP_INTERVAL = os.environ.get('SLEEP_INTERVAL') or 60
-STAY_ALIVE = os.environ.get('STAY_ALIVE') or False
-
 
 def get_battery_parameters(pj):
     """Get all PiJuice parameters and return as a dictionary"""
@@ -57,12 +51,6 @@ def get_battery_parameters(pj):
 
     return juice
 
-
-def update_tag(tag, variable):
-    """Set a tag for the Balena device."""
-    balena.models.tag.device.set(os.environ['BALENA_DEVICE_UUID'], str(tag), str(variable))
-
-
 def set_alarm(interval):
     """Set upcoming wakealarm."""
     wakeup_time = datetime.now() + timedelta(minutes=int(interval))
@@ -73,19 +61,18 @@ def set_alarm(interval):
         with open(WAKEALARM, 'w') as f:
             f.write(timestamp)
         print('Wakealarm set to: %s' % wakeup_time)
-        update_tag("WAKEUP_TIME", wakeup_time.strftime("%Y-%m-%d %H:%M:%S"))
     except OSError as e:
         print('Error setting wake alarm: %s' % e)
 
+def record(pj):
+    record_temperature()
+    record_charge(pj)
 
 def record_temperature():
     """Record current temperature and send to MQTT broker."""
     sensor = W1ThermSensor()
     temperature = sensor.get_temperature()
-    update_tag("TEMPERATURE", temperature)
-    client = mqtt.Client(transport="websockets")
-    client.connect(BROKER_ADDRESS, 80)
-    json_body = [
+    payload = [
         {
             "time": str('{:%Y-%m-%dT%H:%M:%S}'.format(datetime.now(tzutc()))),
             "measurement": "water-temperature",
@@ -95,42 +82,52 @@ def record_temperature():
             }
         }
     ]
+    send(payload)
 
-    print("JSON body = " + str(json_body))
-    msg_info = client.publish("sensors", json.dumps(json_body))
-    if not msg_info.is_published():
-        msg_info.wait_for_publish()
-    client.disconnect()
+def record_charge(pj):
+    """Record the PiJuice charge level."""
 
+    charge = pj.status.GetChargeLevel().get('data')
+    payload = [
+        {
+            "time": str('{:%Y-%m-%dT%H:%M:%S}'.format(datetime.now(tzutc()))),
+            "measurement": "charge",
+            "fields": {
+                "charge": charge,
+            }
+        }
+    ]
+    send(payload)
+
+def send(json):
+    print("Sending payload: " + str(json))
+
+    MAX_RETRIES = 5
+    for _ in range(MAX_RETRIES):
+        response = requests.post(url = API_ENDPOINT, json = json)
+
+        print(response.content.decode("utf-8"))
+        if response.ok:
+            break
+        else:
+            sleep(5)
 
 def stay_alive(pj):
     """Enter endless loop recording temperature."""
     while True:
-        record_temperature()
-
-        battery_data = get_battery_parameters(pj)
-        print(battery_data)
-        for key, value in battery_data.items():
-            update_tag(key, value)
-
-        sleep(60)
+        sleep(300)
+        record(pj)
 
 
 def shutdown(pj):
     """Shutdown Pi."""
-    shutdown_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    update_tag("SHUTDOWN_TIME", shutdown_time)
     set_alarm(SLEEP_INTERVAL)
     pj.power.SetPowerOff(60)
 
+    balena = Balena()
     balena.models.supervisor.shutdown(device_uuid=os.environ['BALENA_DEVICE_UUID'],
                                       app_id=os.environ['BALENA_APP_ID'])
 
-
-# Start the SDK and record start tag
-balena = Balena()
-balena.auth.login_with_token(os.environ['BALENA_API_KEY'])
-update_tag("START_TIME", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 # Wait for device I2C device to start
 while not os.path.exists('/dev/i2c-1'):
@@ -138,11 +135,15 @@ while not os.path.exists('/dev/i2c-1'):
     time.sleep(0.1)
 
 # Initiate PiJuice and make sure watchdog is disabled
-pi_juice = PiJuice(1, 0x14)
-pi_juice.power.SetWatchdog(0)
+pj = PiJuice(1, 0x14)
+pj.power.SetWatchdog(0)
 
-if STAY_ALIVE == '1':
-    stay_alive(pi_juice)
+record(pj)
 
-record_temperature()
-shutdown(pi_juice)
+# If 5V power is connected stay alive, else shutdown
+if pj.status.GetStatus()["data"]["powerInput5vIo"] != "NOT_PRESENT":
+    print("5V Power connected. Staying alive")
+    stay_alive(pj)
+else:
+    print("No external power supply. Set timer and shutdown.")
+    shutdown(pj)

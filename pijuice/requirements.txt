@@ -1,5 +1,5 @@
 balena-sdk
-paho-mqtt
 python-dateutil
-twilio
+requests
+smbus
 w1thermsensor

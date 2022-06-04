@@ -1,0 +1,10 @@
+adafruit-circuitpython-rfm69
+balena-sdk
+Flask
+gps3
+Paste
+pycrypto
+RPi.GPIO
+spidev
+toml
+waitress

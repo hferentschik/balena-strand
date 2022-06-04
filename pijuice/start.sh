@@ -11,8 +11,13 @@ echo "Setting time zone to ${TZ=UTC}"
 ln -fs "/usr/share/zoneinfo/${TZ}" /etc/localtime
 dpkg-reconfigure tzdata
 
+# Configure the hardware clock
 i2cdetect -y 1
 hwclock -w
 hwclock -r
+
+# Dump pijuice config
 ./pijuice_util.py --get-config
+
+# Start the main loop
 python3 main.py

@@ -12,23 +12,48 @@ This is a sister project to [balena-weather](https://github.com/hferentschik/bal
 
 ### Device configuration
 
-In order to use the Pijuice real time clock (RTC) and the one wire temperature sensor the following DT overlays must be set:
+In order to use the PiJuice real time clock (RTC) and the one wire temperature sensor the following DT overlays and parameters must be set:
+
+DT paramters:
 
 ```sh
-"i2c-rtc,ds3231,wakeup-source","w1-gpio,gpiopin=17"
+"spi=on"
+```
+
+ DT overlays:
+
+```sh
+"i2c-rtc,ds3231,wakeup-source","w1-gpio,gpiopin=22","spi0-cs,cs0_pin=25"
 ```
 
 *NOTE*: This uses the non default GPIO pin 17 (opposed to 4).
 
 ### Device service variables
 
-| Variable  | Description  | Values |
-|------------------|-----------------------------------------|------------|
-| MQTT_BROKER      | MQTT server name                        | localhost  |
-| MQTT_BROKER_PORT | MQTT web-socket port                    | 80         |
-| SLEEP_INTERVAL   | Time between measurements               | 60         |
-| START_SSHD       | Whether to open SSH port                | [0&vert;1] |
-| STAY_ALIVE       | Whether to stay alive after measurement | [0&vert;1] |
+| Variable        | Service | Description                             | Values                       |
+|-----------------|---------|-----------------------------------------|------------------------------|
+| API_ENDPOINT    | pijuice | HTTP endpoint to post measurement JSON  | http://lora:8080/api/v1/send |
+| START_SSHD      | pijuice | Whether to open SSH port                | [0&vert;1]                   |
+| STAY_ALIVE      | pijuice | Whether to stay alive after measurement | [0&vert;1]                   |
+| APPKEY          | lora    | TTN appkey                              |                              |
+| APPUI           | lora    | TTN appui                               |                              |
+| DEVUI           | lora    | TTN devui                               |                              |
+
+## TTN config
+
+### Default uplink payload formatter
+
+```javascript
+function decodeUplink(input) {
+  tmp = String.fromCharCode(...input.bytes)
+  payload = JSON.parse(tmp)
+  return {
+    data: payload,
+    warnings: [],
+    errors: []
+  };
+}
+```
 
 ## Development
 
