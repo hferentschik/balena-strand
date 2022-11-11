@@ -129,10 +129,35 @@ def shutdown(pj):
                                       app_id=os.environ['BALENA_APP_ID'])
 
 
-# Wait for device I2C device to start
-while not os.path.exists('/dev/i2c-1'):
-    print("Waiting to identify PiJuice")
-    time.sleep(0.1)
+def wait_for_resources():
+    timeout = 240  # [seconds]
+    timeout_start = time.time()
+
+    restart_required = True
+    while time.time() < timeout_start + timeout:
+        time.sleep(5)
+
+        # check for device I2C device to start
+        if not os.path.exists('/dev/i2c-1'):
+            print("no /dev/i2c-1 yet")
+            continue
+
+        # check for wake alarm file
+        if not os.path.exists('/sys/class/rtc/rtc0/wakealarm'):
+            print("no /sys/class/rtc/rtc0/wakealarm yet")
+            continue
+
+        restart_required = False
+        break
+
+    if restart_required:
+        balena = Balena()
+        balena.models.supervisor.reboot(device_uuid=os.environ['BALENA_DEVICE_UUID'],
+                                          app_id=os.environ['BALENA_APP_ID'])
+
+
+# Make sure the required devices/files are available (potentially rebooting)
+wait_for_resources()
 
 # Initiate PiJuice and make sure watchdog is disabled
 pj = PiJuice(1, 0x14)
