@@ -75,7 +75,7 @@ def record_temperature():
     payload = [
         {
             "time": str('{:%Y-%m-%dT%H:%M:%S}'.format(datetime.now(tzutc()))),
-            "measurement": "water-temperature",
+            "measurement": "glashuset-temperature",
             "fields": {
                 "temperature": temperature,
                 "sensor": "DS18B20"

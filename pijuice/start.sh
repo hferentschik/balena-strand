@@ -19,5 +19,4 @@ hwclock -r
 # Dump pijuice config
 ./pijuice_util.py --get-config
 
-# Start the main loop
 python3 main.py
